@@ -1,0 +1,7 @@
+build/*
+dist/*
+demo/*
+thirdparty/pionc/lib/*
+thirdparty/pionc/include/*
+
+**/docker_token.txt

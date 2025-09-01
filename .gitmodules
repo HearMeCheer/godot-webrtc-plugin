@@ -1,0 +1,10 @@
+[submodule "godot-cpp"]
+	path = godot-cpp
+	url = https://github.com/deveses/godot-cpp.git
+	branch = 4.3
+[submodule "thirdparty/opus"]
+	path = thirdparty/opus
+	url = https://github.com/deveses/opus.git
+[submodule "thirdparty/pionc"]
+	path = thirdparty/pionc
+	url = https://github.com/deveses/pionc.git

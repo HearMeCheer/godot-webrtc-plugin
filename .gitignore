@@ -1,0 +1,17 @@
+bin/*
+build/*
+dist/*
+*.os
+*.a
+*.o
+*.lib
+.sconsign.dblite
+*.obj
+*.swp
+__pycache__/*
+*.pyc
+*.DS_Store
+demo/BomberMultiplayerDemo/webrtc/*
+demo/MultiplayerTemplate/webrtc/*
+**/.godot/*
+**/.vscode/*
