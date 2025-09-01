@@ -1,0 +1,64 @@
+name: Build Linux
+
+on:
+  # push:
+  #   branches: [ "main" ]
+  # pull_request:
+  #   branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-linux:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - uses: actions/setup-go@v5
+      with:
+        go-version-file: 'thirdparty/pionc/src/go.mod'        
+        
+    - name: Install dependencies
+      run: sudo apt-get update && sudo apt-get install -y git curl build-essential golang-go clang scons
+
+    - name: Cache GodotCpp
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-godot-cpp
+      with:
+        key: ${{ runner.os }}-build-godot-cpp-${{ hashFiles('./godot-cpp/README.md') }}
+        path: |
+          ./godot-cpp/bin
+          ./godot-cpp/gen
+          .sconsign.dblite
+          # bin/
+          # build/
+          # godot-cpp/bin/
+          # gen/
+          # compile_commands.json
+
+    - name: Cache Opus
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-opus
+      with:
+        key: ${{ runner.os }}-build-opus-${{ hashFiles('./thirdparty/opus/releases.sha2') }}
+        path: |
+          ./thirdparty/opus/.libs
+
+    - name: Build Opus
+      run: |
+        if [ ! -d thirdparty/opus/.libs ]; then
+          make opus
+        else
+          echo "Opus already cached, skipping..."
+        fi
+
+    - name: Build
+      run: make all
+
+    - name: Tests
+      run: make tests

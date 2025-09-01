@@ -1,0 +1,33 @@
+name: Download Godot
+description: Download Godot for Linux
+inputs:
+  godot_version:
+    description: 'Select the Godot version to download'
+    required: true
+    default: '4.3'
+    type: string
+  godot_build_dir:
+    description: 'Directory to store the downloaded Godot build'
+    required: true
+    default: 'godot_build'
+    type: string
+outputs:
+  godot_build_dir:
+    description: 'Directory where Godot is downloaded'
+    value: ${{ inputs.godot_build_dir }}
+  godot_file_name:
+    description: 'Name of the downloaded Godot file'
+    value: ${{ format('Godot_v{0}-stable_linux.x86_64.zip', inputs.godot_version) }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Download Godot
+      env:
+        GODOT_FILE_NAME: 'Godot_v${{inputs.godot_version}}-stable_linux.x86_64.zip'
+        GODOT_URL: 'https://github.com/godotengine/godot/releases/download/${{inputs.godot_version}}-stable'
+      shell: bash
+      run: |
+        mkdir -p ${{ inputs.godot_build_dir }}
+        wget -nv -O ${{ inputs.godot_build_dir }}/$GODOT_FILE_NAME $GODOT_URL/$GODOT_FILE_NAME
+        unzip -q ${{ inputs.godot_build_dir }}/$GODOT_FILE_NAME -d ${{ inputs.godot_build_dir }}

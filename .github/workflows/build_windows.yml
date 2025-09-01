@@ -1,0 +1,94 @@
+name: Windows Build
+
+on:
+  # push:
+  #   branches: [ "main" ]
+  # pull_request:
+  #   branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+  build-windows:
+
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: msys2 {0}
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        submodules: recursive
+
+    - name: Setup MSYS2
+      uses: msys2/setup-msys2@v2
+      with:
+        msystem: MINGW64
+        update: true
+        install: >-
+          mingw-w64-x86_64-gcc
+          mingw-w64-x86_64-cmake
+          mingw-w64-x86_64-make
+          mingw-w64-x86_64-binutils
+          mingw-w64-x86_64-tools
+          make
+          scons
+          mingw-w64-x86_64-go
+
+    # - name: Setup Go
+    #   uses: actions/setup-go@v5
+    #   with:
+    #     go-version-file: 'thirdparty/pionc/src/go.mod'        
+
+    - run: go version
+        
+    # - name: Install dependencies
+    #   run: choco install -y make mingw golang cmake
+
+    - name: Cache GodotCpp
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-godot-cpp
+      with:
+        key: ${{ runner.os }}-build-godot-cpp-${{ hashFiles('./godot-cpp/README.md') }}
+        path: |
+          ./godot-cpp/bin
+          ./godot-cpp/gen
+          .sconsign.dblite
+
+    - name: Cache Opus
+      uses: actions/cache@v3
+      env:
+        cache-name: cache-opus
+      with:
+        key: ${{ runner.os }}-build-opus-${{ hashFiles('./thirdparty/opus/releases.sha2') }}
+        path: |
+          ./thirdparty/opus/build
+          ./thirdparty/opus/dnn
+          ./thirdparty/opus/tests
+          ./thirdparty/opus/.libs
+
+    - name: Build Opus
+      run: |
+        set -x
+        if [ ! -d thirdparty/opus/.libs ]; then
+          make -d opus
+        else
+          echo "Opus already cached, skipping..."
+        fi
+        set +x
+
+    - name: Build
+      run: make all
+
+    - name: Tests
+      run: make tests
+
+
+    - name: Upload Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: godot-webrtc-extension
+        path: ${{github.workspace}}/build/extension-4.1/
+        #retention-days: 7
+        if-no-files-found: warn
