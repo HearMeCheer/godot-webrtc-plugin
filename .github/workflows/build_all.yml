@@ -1,0 +1,128 @@
+name: Build Godot WebRTC Extension
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  workflow_dispatch:
+
+jobs:
+    build:
+        name: ${{ matrix.name }}
+        runs-on: ${{ matrix.os }}
+        defaults:
+            run:
+                shell: ${{ matrix.shell || 'bash' }}
+        strategy:
+            fail-fast: false
+            matrix:
+                include:
+                    - name: 🏁 Windows (x86_64, MinGW)
+                      os: windows-latest
+                      platform: windows
+                      artifact-name: godot-webrtc-extension-windows-x86_64-release
+                      artifact-path: build/extension-4.1/libgodot_webrtc.windows.template_release.x86_64.a
+                      run-tests: true
+                      cache-name: windows-x86_64-mingw
+                      shell: msys2 {0}
+                    
+                    - name: 🐧 Linux 
+                      os: ubuntu-latest
+                      platform: linux
+                      artifact-name: godot-webrtc-extension-linux-x86_64-release
+                      artifact-path: build/extension-4.1/libgodot_webrtc.linux.template_release.x86_64.a
+                      run-tests: true
+                      cache-name: linux-x86_64
+
+                    - name: 🍎 macOS (universal)
+                      os: macos-latest
+                      platform: macos
+                      artifact-name: godot-webrtc-extension-macos-universal-release
+                      artifact-path: build/extension-4.1/libgodot_webrtc.macos.template_release.universal.a
+                      flags: arch=universal
+                      run-tests: false
+                      cache-name: macos-universal
+        steps:
+            - name: Checkout
+              uses: actions/checkout@v4
+              with:
+                submodules: recursive
+
+            - name: Setup MSYS2
+              if: matrix.os == 'windows-latest'
+              uses: msys2/setup-msys2@v2
+              with:
+                msystem: MINGW64
+                update: true
+                install: >-
+                    mingw-w64-x86_64-gcc
+                    mingw-w64-x86_64-cmake
+                    mingw-w64-x86_64-make
+                    mingw-w64-x86_64-binutils
+                    mingw-w64-x86_64-tools
+                    make
+                    scons
+                    mingw-w64-x86_64-go
+
+            - name: Setup Go
+              if: matrix.os != 'windows-latest'
+              uses: actions/setup-go@v5
+              with:
+                go-version-file: 'thirdparty/pionc/src/go.mod'        
+                cache-dependency-path: 'thirdparty/pionc/src/go.mod'
+
+            - run: go version
+        
+            - name: Install dependencies (linux)
+              if: matrix.os == 'ubuntu-latest'
+              run: sudo apt-get update && sudo apt-get install -y git curl build-essential clang scons autoconf automake libtool gcc make
+
+            - name: Install dependencies (MacOS)
+              if: matrix.os == 'macos-latest'
+              run: brew install scons autoconf automake libtool
+
+            - name: Cache GodotCpp
+              uses: actions/cache@v3
+              env:
+                cache-name: cache-godot-cpp
+              with:
+                key: ${{ runner.os }}-build-godot-cpp-${{ hashFiles('./godot-cpp/README.md') }}
+                path: |
+                    ./godot-cpp/bin
+                    ./godot-cpp/gen
+                    .sconsign.dblite
+
+            - name: Cache Opus
+              uses: actions/cache@v3
+              env:
+                cache-name: cache-opus
+              with:
+                key: ${{ runner.os }}-build-opus-${{ hashFiles('./thirdparty/opus/releases.sha2') }}
+                path: |
+                    ./thirdparty/opus/build
+                    ./thirdparty/opus/dnn
+                    ./thirdparty/opus/tests
+                    ./thirdparty/opus/.libs
+
+            - name: Build Opus
+              run: |
+                if [ ! -d thirdparty/opus/.libs ]; then
+                  make opus
+                else
+                  echo "Opus already cached, skipping..."
+                fi
+
+            - name: Build
+              run: make all
+
+            - name: Tests
+              run: make tests
+
+            - name: Upload Artifact
+              uses: actions/upload-artifact@v4
+              with:
+                name: ${{ matrix.artifact-name }}
+                path: ${{github.workspace}}/build/extension-4.1/
+                #retention-days: 7
+                if-no-files-found: warn
